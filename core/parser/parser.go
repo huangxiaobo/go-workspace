@@ -1,6 +1,6 @@
 package parser
 
-import "../utils"
+import "money/core/utils"
 
 type Parser interface {
 	Parse(content string) [] utils.Proxy

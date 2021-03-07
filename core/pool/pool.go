@@ -1,10 +1,11 @@
 package pool
 
 import (
-	"../utils"
 	"bufio"
 	"fmt"
+	"github.com/go-redis/redis/v7"
 	"log"
+	"money/core/utils"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 type ProxyPool struct {
 	out chan utils.Proxy
 	in  chan utils.Proxy
+	Client *redis.Client
 }
 
 const ProxyCsvFile = "proxy_pool.csv"
@@ -24,10 +26,46 @@ func (pp *ProxyPool) Initialize() *ProxyPool {
 	pp.readOut()
 	pp.writeIn()
 
+	pp.Client, _ = utils.Connect()
+
+
 	return pp
 }
 
+func (pp *ProxyPool) load()  {
+	// 将cvs文件的内容加载到redis
+	file, err := os.OpenFile(ProxyCsvFile, os.O_RDONLY|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	for true {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		line = utils.Strip(line)
+		arr := strings.Split(line, ",")
+
+		if len(arr) < 5 {
+			fmt.Printf("line is not valid: %s\n", line)
+			continue
+		}
+
+		proxy := utils.Proxy{Ip: arr[0], Port: arr[1], Anonymous: arr[2], Protocol: arr[3], Location: arr[4]}
+		pp.Client.LPush("proxy", proxy)
+	}
+
+}
+
 func (pp *ProxyPool) readOut() {
+	log.Printf("readout")
 	go func() {
 		file, err := os.OpenFile(ProxyCsvFile, os.O_RDONLY|os.O_CREATE, os.ModePerm)
 		if err != nil {
@@ -41,6 +79,7 @@ func (pp *ProxyPool) readOut() {
 		for true {
 			line, err := reader.ReadString('\n')
 			if err != nil {
+				log.Fatal(err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
@@ -56,6 +95,7 @@ func (pp *ProxyPool) readOut() {
 			}
 
 			proxy := utils.Proxy{Ip: arr[0], Port: arr[1], Anonymous: arr[2], Protocol: arr[3], Location: arr[4]}
+			log.Printf(proxy.String())
 			pp.out <- proxy
 		}
 
@@ -88,7 +128,9 @@ func (pp *ProxyPool) writeIn() {
 }
 
 func (pp *ProxyPool) ReceiveProxy(proxy utils.Proxy) {
+	// 收到解析的代理
 
 	pp.in <- proxy
+	pp.Client.LPush("proxy", proxy)
 
 }

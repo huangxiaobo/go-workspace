@@ -1,10 +1,10 @@
 package parser
 
 import (
-	"../utils"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
+	"money/core/utils"
 	"strings"
 )
 

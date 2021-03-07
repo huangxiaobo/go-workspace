@@ -1,12 +1,12 @@
 package fetch
 
 import (
-	"../utils"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"money/core/utils"
 	"net/http"
 	"net/url"
 	"time"
