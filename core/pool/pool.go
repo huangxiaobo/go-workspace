@@ -2,18 +2,19 @@ package pool
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v7"
-	"log"
+	log "github.com/sirupsen/logrus"
+	"io"
 	"money/core/utils"
 	"os"
 	"strings"
-	"time"
 )
 
 type ProxyPool struct {
-	out chan utils.Proxy
-	in  chan utils.Proxy
+	out    chan utils.Proxy
+	in     chan utils.Proxy
 	Client *redis.Client
 }
 
@@ -28,11 +29,12 @@ func (pp *ProxyPool) Initialize() *ProxyPool {
 
 	pp.Client, _ = utils.Connect()
 
+	pp.load2Redis()
 
 	return pp
 }
 
-func (pp *ProxyPool) load()  {
+func (pp *ProxyPool) load2Redis() {
 	// 将cvs文件的内容加载到redis
 	file, err := os.OpenFile(ProxyCsvFile, os.O_RDONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
@@ -45,9 +47,11 @@ func (pp *ProxyPool) load()  {
 
 	for true {
 		line, err := reader.ReadString('\n')
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
+		if len(line) == 0 && err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatal(err)
 		}
 
 		line = utils.Strip(line)
@@ -59,7 +63,12 @@ func (pp *ProxyPool) load()  {
 		}
 
 		proxy := utils.Proxy{Ip: arr[0], Port: arr[1], Anonymous: arr[2], Protocol: arr[3], Location: arr[4]}
-		pp.Client.LPush("proxy", proxy)
+
+		proxyJsonData, _ := json.Marshal(proxy)
+		log.Printf(">>>>>%v\n", proxyJsonData)
+		value, err := pp.Client.LPush(utils.REDIS_RAW_PROXY_LIST, proxyJsonData).Result()
+		log.Println(err)
+		log.Printf("send %s to redis: %d\n", proxy.Ip, value)
 	}
 
 }
@@ -78,10 +87,11 @@ func (pp *ProxyPool) readOut() {
 
 		for true {
 			line, err := reader.ReadString('\n')
-			if err != nil {
+			if len(line) == 0 && err != nil {
+				if err == io.EOF {
+					break
+				}
 				log.Fatal(err)
-				time.Sleep(5 * time.Second)
-				continue
 			}
 
 			line = utils.Strip(line)

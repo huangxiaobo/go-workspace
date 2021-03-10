@@ -1,9 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis/v7"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"money/core/fetch"
 	"money/core/parser"
 	"money/core/pool"
@@ -12,7 +13,7 @@ import (
 )
 
 type Scheduler struct {
-	Client *redis.Client
+	redisClient *redis.Client
 }
 
 func (sd *Scheduler) addFetchTasks(fetchTasks chan fetch.Task) {
@@ -35,12 +36,12 @@ func (sd *Scheduler) crawlerProxy(proxyPool *pool.ProxyPool, fetchTasks chan fet
 
 				reqUrl := fetchTask.Url
 				domain := fetchTask.Domain
-				log.Printf("crawler proxy: %s\n", reqUrl)
+				log.Info("crawler proxy: %s\n", reqUrl)
 
 				proxy := proxyPool.GetProxy()
 
 				ok, html := fetch.Fetch(reqUrl, &proxy)
-				fmt.Println("download ", reqUrl, " status: ", ok)
+				log.Info("download ", reqUrl, " status: ", ok)
 				if ok != true {
 					// retry
 					fetchTasks <- fetchTask
@@ -63,21 +64,51 @@ func (sd *Scheduler) crawlerProxy(proxyPool *pool.ProxyPool, fetchTasks chan fet
 
 }
 
+func (sd *Scheduler) validateProxy() {
+	go func() {
+		for true {
+			// 从redis的队列中读取proxy 然后验证proxy是否有效
+			var values []string
+			values, err := sd.redisClient.BLPop(time.Duration(time.Duration.Seconds(5)), utils.REDIS_RAW_PROXY_LIST).Result()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			for _, value := range values {
+				log.WithFields(log.Fields{"proxy": value})
+				var proxy utils.Proxy
+				err = json.Unmarshal([]byte(value), &proxy)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				log.Printf("hxb >>>>>>>>>%v\n", proxy.Ip)
+
+			}
+
+			time.Sleep(time.Duration(time.Duration.Seconds(2)))
+		}
+	}()
+}
+
 func (sd *Scheduler) start() {
 	var proxyPool = pool.ProxyPool{}
 	proxyPool.Initialize()
 
 	fetchTasks := make(chan fetch.Task, 100)
 
-	sd.Client, _ = utils.Connect()
+	sd.redisClient, _ = utils.Connect()
 
 	go sd.addFetchTasks(fetchTasks)
 	go sd.crawlerProxy(&proxyPool, fetchTasks)
+	go sd.validateProxy()
 
 }
 
 func main() {
-	fmt.Println("proxy pool")
+	utils.InitLog("./log", "money", "utf-8")
+	log.Info("proxy pool")
 
 	sd := Scheduler{}
 	sd.start()
