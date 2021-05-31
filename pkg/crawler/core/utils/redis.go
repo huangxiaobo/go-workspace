@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"github.com/go-redis/redis/v7"
 	"log"
 )
 

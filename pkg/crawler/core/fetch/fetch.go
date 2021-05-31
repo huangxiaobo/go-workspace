@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
-	"money/core/utils"
+	utils2 "money/pkg/crawler/core/utils"
 	"net/http"
 	"net/url"
 	"time"
@@ -14,7 +14,7 @@ import (
 
 type Task struct {
 	Url     string
-	Domain  utils.DomainType
+	Domain  utils2.DomainType
 	Content string
 }
 
@@ -39,7 +39,7 @@ func getAgent() string {
 	return agent[r.Intn(len)]
 }
 
-func Fetch(urlString string, proxy *utils.Proxy) (bool, string) {
+func Fetch(urlString string, proxy *utils2.Proxy) (bool, string) {
 	fmt.Printf("download >>> url: %s, proxy: %v\n", urlString, *proxy)
 
 	timeout := time.Duration(5000 * time.Millisecond) //超时时间50ms

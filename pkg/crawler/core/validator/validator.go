@@ -2,7 +2,7 @@ package validator
 
 import (
 	"log"
-	"money/core/utils"
+	utils2 "money/pkg/crawler/core/utils"
 )
 import "github.com/kirinlabs/HttpRequest"
 
@@ -11,7 +11,7 @@ import "github.com/kirinlabs/HttpRequest"
 type Validator struct {
 }
 
-func validate(proxy utils.Proxy) bool {
+func validate(proxy utils2.Proxy) bool {
 	response, err := HttpRequest.Get("https://www.baidu.com")
 	if err != nil {
 		log.Fatal(err)

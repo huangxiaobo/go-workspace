@@ -3,12 +3,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-redis/redis/v7"
 	log "github.com/sirupsen/logrus"
-	"money/core/fetch"
-	"money/core/parser"
-	"money/core/pool"
-	"money/core/utils"
+	fetch2 "money/pkg/crawler/core/fetch"
+	parser2 "money/pkg/crawler/core/parser"
+	pool2 "money/pkg/crawler/core/pool"
+	utils2 "money/pkg/crawler/core/utils"
 	"time"
 )
 
@@ -16,18 +15,18 @@ type Scheduler struct {
 	redisClient *redis.Client
 }
 
-func (sd *Scheduler) addFetchTasks(fetchTasks chan fetch.Task) {
+func (sd *Scheduler) addFetchTasks(fetchTasks chan fetch2.Task) {
 	go func() {
 
 		for i := 1; i < 12; i++ {
 			reqUrl := fmt.Sprintf("https://www.kuaidaili.com/free/inha/%d/", i)
-			fetchTasks <- fetch.Task{Url: reqUrl, Domain: utils.KUAIDAILI}
+			fetchTasks <- fetch2.Task{Url: reqUrl, Domain: utils2.KUAIDAILI}
 		}
 	}()
 
 }
 
-func (sd *Scheduler) crawlerProxy(proxyPool *pool.ProxyPool, fetchTasks chan fetch.Task) {
+func (sd *Scheduler) crawlerProxy(proxyPool *pool2.ProxyPool, fetchTasks chan fetch2.Task) {
 
 	for i := 0; i < 10; i++ {
 		go func() {
@@ -40,7 +39,7 @@ func (sd *Scheduler) crawlerProxy(proxyPool *pool.ProxyPool, fetchTasks chan fet
 
 				proxy := proxyPool.GetProxy()
 
-				ok, html := fetch.Fetch(reqUrl, &proxy)
+				ok, html := fetch2.Fetch(reqUrl, &proxy)
 				log.Info("download ", reqUrl, " status: ", ok)
 				if ok != true {
 					// retry
@@ -48,7 +47,7 @@ func (sd *Scheduler) crawlerProxy(proxyPool *pool.ProxyPool, fetchTasks chan fet
 					continue
 				}
 
-				parser := parser.Factory(domain)
+				parser := parser2.Factory(domain)
 				ipList := parser.Parse(html)
 
 				for i := 0; i < len(ipList); i++ {
@@ -69,7 +68,7 @@ func (sd *Scheduler) validateProxy() {
 		for true {
 			// 从redis的队列中读取proxy 然后验证proxy是否有效
 			var values []string
-			values, err := sd.redisClient.BLPop(time.Duration(time.Duration.Seconds(5)), utils.REDIS_RAW_PROXY_LIST).Result()
+			values, err := sd.redisClient.BLPop(time.Duration(time.Duration.Seconds(5)), utils2.REDIS_RAW_PROXY_LIST).Result()
 			if err != nil {
 				log.Println(err)
 				continue
@@ -77,7 +76,7 @@ func (sd *Scheduler) validateProxy() {
 
 			for _, value := range values {
 				log.WithFields(log.Fields{"proxy": value})
-				var proxy utils.Proxy
+				var proxy utils2.Proxy
 				err = json.Unmarshal([]byte(value), &proxy)
 				if err != nil {
 					log.Println(err)
@@ -93,12 +92,12 @@ func (sd *Scheduler) validateProxy() {
 }
 
 func (sd *Scheduler) start() {
-	var proxyPool = pool.ProxyPool{}
+	var proxyPool = pool2.ProxyPool{}
 	proxyPool.Initialize()
 
-	fetchTasks := make(chan fetch.Task, 100)
+	fetchTasks := make(chan fetch2.Task, 100)
 
-	sd.redisClient, _ = utils.Connect()
+	sd.redisClient, _ = utils2.Connect()
 
 	go sd.addFetchTasks(fetchTasks)
 	go sd.crawlerProxy(&proxyPool, fetchTasks)
@@ -107,7 +106,7 @@ func (sd *Scheduler) start() {
 }
 
 func main() {
-	utils.InitLog("./log", "money", "utf-8")
+	utils2.InitLog("./log", "money", "utf-8")
 	log.Info("proxy pool")
 
 	sd := Scheduler{}
