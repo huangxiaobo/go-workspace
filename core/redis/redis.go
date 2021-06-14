@@ -1,13 +1,22 @@
-package utils
+package redis
 
 import (
 	"fmt"
-	"log"
+	"gopkg.in/redis.v4"
+
+	"money/core/log"
 )
 
 var (
 	Client *redis.Client
 )
+
+func init() {
+	_, err := Connect()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func Connect() (*redis.Client, error) {
 	if Client != nil {
@@ -16,8 +25,7 @@ func Connect() (*redis.Client, error) {
 
 	option := redis.Options{
 		Addr: "0.0.0.0:6379",
-		//Password: "123456", // no password set
-		DB: 0, // use default DB
+		DB:   0,
 	}
 	Client = redis.NewClient(&option)
 

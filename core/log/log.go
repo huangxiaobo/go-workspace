@@ -1,10 +1,10 @@
-package utils
+package log
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,10 +13,20 @@ import (
 	"time"
 )
 
+const debug = true
+
+var (
+	logger *logrus.Logger
+)
+
+func init() {
+	logger = logrus.New()
+}
+
 type LogFormatter struct {
 }
 
-func (s *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
+func (s *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	timestamp := time.Now().Local().Format("0102-150405.000")
 	var file string
 	var len int
@@ -76,6 +86,9 @@ func (p *logFileWriter) Write(data []byte) (n int, err error) {
 	//	n, e := p.file.Write(dataToEncode)
 	//	return n, e
 	//}
+	if debug {
+		fmt.Println(string(data))
+	}
 
 	n, e := p.file.Write(data)
 	return n, e
@@ -88,20 +101,48 @@ func InitLog(logPath string, appName string, encoding string) {
 	//Create directory
 	err := os.MkdirAll(fmt.Sprintf("%s/%s", logPath, fileDate), os.ModePerm)
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return
 	}
 
 	filename := fmt.Sprintf("%s/%s/%s-%s.log", logPath, fileDate, appName, fileDate)
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0600)
 	if err != nil {
-		log.Error(err)
+		logger.Error(err)
 		return
 	}
 
 	fileWriter := logFileWriter{file, logPath, fileDate, appName, encoding}
-	log.SetOutput(&fileWriter)
+	logger.SetOutput(&fileWriter)
 
-	log.SetReportCaller(true)
-	log.SetFormatter(new(LogFormatter))
+	logger.SetReportCaller(true)
+	logger.SetFormatter(new(LogFormatter))
+}
+
+func Print(args ...interface{}) {
+	logger.Print(args...)
+}
+
+func Info(args ...interface{}) {
+	logger.Info(args...)
+}
+
+func Warn(args ...interface{}) {
+	logger.Warn(args...)
+}
+
+func Warning(args ...interface{}) {
+	logger.Warning(args...)
+}
+
+func Error(args ...interface{}) {
+	logger.Error(args...)
+}
+
+func Panic(args ...interface{}) {
+	logger.Panic(args...)
+}
+
+func Fatal(args ...interface{}) {
+	logger.Fatal(args...)
 }

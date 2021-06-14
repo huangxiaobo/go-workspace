@@ -14,4 +14,4 @@
 # IDE directory
 *.idea
 
-log
+output

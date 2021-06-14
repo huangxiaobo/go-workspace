@@ -1,22 +1,15 @@
 package fetch
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
-	utils2 "money/pkg/crawler/core/utils"
 	"net/http"
-	"net/url"
 	"time"
-)
 
-type Task struct {
-	Url     string
-	Domain  utils2.DomainType
-	Content string
-}
+	"money/core/log"
+	"money/core/utils"
+)
 
 /**
 * 随机返回一个User-Agent
@@ -39,20 +32,11 @@ func getAgent() string {
 	return agent[r.Intn(len)]
 }
 
-func Fetch(urlString string, proxy *utils2.Proxy) (bool, string) {
+func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
 	fmt.Printf("download >>> url: %s, proxy: %v\n", urlString, *proxy)
 
-	timeout := time.Duration(5000 * time.Millisecond) //超时时间50ms
-
-	proxyString := fmt.Sprintf("%s://%s:%s", proxy.Protocol, proxy.Ip, proxy.Port)
-	proxyUrl, _ := url.Parse(proxyString)
-
-	transport := &http.Transport{
-		Proxy:           http.ProxyURL(proxyUrl),
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-
-	client := &http.Client{Transport: transport, Timeout: timeout}
+	transport := proxy.GetTransport()
+	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
 	req, err := http.NewRequest("GET", urlString, nil)
 	if err != nil {
 		log.Fatal("new request failed,", err.Error())
@@ -67,7 +51,7 @@ func Fetch(urlString string, proxy *utils2.Proxy) (bool, string) {
 	resp, err := client.Do(req)
 
 	if err != nil || resp == nil {
-		fmt.Printf("do request fail>>>: %v", err)
+		log.Info("do request fail>>>: %v", err)
 		return false, ""
 	}
 
