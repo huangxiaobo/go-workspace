@@ -82,7 +82,7 @@ func (p *logFileWriter) Write(data []byte) (n int, err error) {
 
 }
 
-//Initialization log
+// InitLog Initialization log
 func InitLog(logPath string, appName string, encoding string) {
 	fileDate := time.Now().Format("20060102")
 	//Create directory
