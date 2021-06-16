@@ -1,148 +1,169 @@
 package log
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
+	"io"
 	"os"
-	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
-const debug = true
+var logger = logrus.New()
 
-var (
-	logger *logrus.Logger
-)
+// Fields 封装logrus.Fields
+type Fields logrus.Fields
 
-func init() {
-	logger = logrus.New()
+func SetLogLevel(level logrus.Level) {
+	logger.Level = level
+}
+func SetLogFormatter(formatter logrus.Formatter) {
+	logger.Formatter = formatter
 }
 
-type LogFormatter struct {
-}
-
-func (s *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	timestamp := time.Now().Local().Format("0102-150405.000")
-	var file string
-	var len int
-	if entry.Caller != nil {
-		file = filepath.Base(entry.Caller.File)
-		len = entry.Caller.Line
+func Debug(args ...interface{}) {
+	if logger.Level >= logrus.DebugLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Debug(args)
 	}
-	//fmt.Println(entry.Data)
-	msg := fmt.Sprintf("%s [%s:%d][GOID:%d][%s] %s\n", timestamp, file, len, getGID(), strings.ToUpper(entry.Level.String()), entry.Message)
-	return []byte(msg), nil
 }
 
-func getGID() uint64 {
-
-	b := make([]byte, 64)
-	b = b[:runtime.Stack(b, false)]
-	b = bytes.TrimPrefix(b, []byte("goroutine "))
-	b = b[:bytes.IndexByte(b, ' ')]
-	n, _ := strconv.ParseUint(string(b), 10, 64)
-	return n
-}
-
-type logFileWriter struct {
-	file     *os.File
-	logPath  string
-	fileDate string // judge the date to switch the directory
-	appName  string
-	encoding string
-}
-
-func (p *logFileWriter) Write(data []byte) (n int, err error) {
-	if p == nil {
-		return 0, errors.New("logFileWriter is nil")
+// DebugWithFields 带有field的Debug
+func DebugWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.DebugLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Debug(l)
 	}
-	if p.file == nil {
-		return 0, errors.New("file not opened")
-	}
+}
 
-	//Determine whether to switch dates
-	fileDate := time.Now().Format("20060102")
-	if p.fileDate != fileDate {
-		p.file.Close()
-		err = os.MkdirAll(fmt.Sprintf("%s/%s", p.logPath, fileDate), os.ModePerm)
-		if err != nil {
-			return 0, err
+func Info(args ...interface{}) {
+	if logger.Level >= logrus.InfoLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Info(args...)
+	}
+}
+
+// InfoWithFields 带有field的Info
+func InfoWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.InfoLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Info(l)
+	}
+}
+
+func Warn(args ...interface{}) {
+	if logger.Level >= logrus.WarnLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Warn(args...)
+	}
+}
+
+// WarnWithFields 带有Field的Warn
+func WarnWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.WarnLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Warn(l)
+	}
+}
+
+func Error(args ...interface{}) {
+	if logger.Level >= logrus.ErrorLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Error(args...)
+	}
+}
+
+// ErrorWithFields 带有Fields的Error
+func ErrorWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.ErrorLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Error(l)
+	}
+}
+
+func Fatal(args ...interface{}) {
+	if logger.Level >= logrus.FatalLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Fatal(args...)
+	}
+}
+
+// FatalWithFields 带有Field的Fatal
+func FatalWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.FatalLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Fatal(l)
+	}
+}
+
+func Panic(args ...interface{}) {
+	if logger.Level >= logrus.PanicLevel {
+		entry := logger.WithFields(logrus.Fields{})
+		entry.Data["file"] = fileInfo(2)
+		entry.Panic(args...)
+	}
+}
+
+// PanicWithFields 带有Field的Panic
+func PanicWithFields(l interface{}, f Fields) {
+	if logger.Level >= logrus.PanicLevel {
+		entry := logger.WithFields(logrus.Fields(f))
+		entry.Data["file"] = fileInfo(2)
+		entry.Panic(l)
+	}
+}
+func fileInfo(skip int) string {
+	_, file, line, ok := runtime.Caller(skip)
+	if !ok {
+		file = "<???>"
+		line = 1
+	} else {
+		slash := strings.LastIndex(file, "/")
+		if slash >= 0 {
+			file = file[slash+1:]
 		}
-		filename := fmt.Sprintf("%s/%s/%s-%s.log", p.logPath, fileDate, p.appName, fileDate)
-
-		p.file, err = os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0600)
-		if err != nil {
-			return 0, err
-		}
-
 	}
-	//if p.encoding != "" {
-	//	dataToEncode := ConvertStringToByte(string(data), p.encoding)
-	//	n, e := p.file.Write(dataToEncode)
-	//	return n, e
-	//}
-	if debug {
-		fmt.Println(string(data))
-	}
-
-	n, e := p.file.Write(data)
-	return n, e
-
+	return fmt.Sprintf("%s:%d", file, line)
 }
 
 // InitLog Initialization log
 func InitLog(logPath string, appName string, encoding string) {
 	fileDate := time.Now().Format("20060102")
-	//Create directory
-	err := os.MkdirAll(fmt.Sprintf("%s/%s", logPath, fileDate), os.ModePerm)
-	if err != nil {
-		logger.Error(err)
-		return
-	}
-
-	filename := fmt.Sprintf("%s/%s/%s-%s.log", logPath, fileDate, appName, fileDate)
+	filename := fmt.Sprintf("%s/%s-%s.log", logPath, appName, fileDate)
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE|os.O_SYNC, 0600)
 	if err != nil {
 		logger.Error(err)
 		return
 	}
 
-	fileWriter := logFileWriter{file, logPath, fileDate, appName, encoding}
-	logger.SetOutput(&fileWriter)
+	writers := []io.Writer{
+		file,
+		os.Stdout}
+	//同时写文件和屏幕
+	fileAndStdoutWriter := io.MultiWriter(writers...)
 
-	logger.SetReportCaller(true)
-	logger.SetFormatter(new(LogFormatter))
-}
+	// 设置将日志输出到标准输出（默认的输出为stderr，标准错误）
+	// 日志消息输出可以是任意的io.writer类型
+	logger.SetOutput(fileAndStdoutWriter)
 
-func Print(args ...interface{}) {
-	logger.Print(args...)
-}
+	// 设置日志格式为json格式
+	logger.SetFormatter(&logrus.JSONFormatter{})
 
-func Info(args ...interface{}) {
-	logger.Info(args...)
-}
+	// 置在输出日志中添加文件名和方法信息
+	logrus.SetReportCaller(true)
 
-func Warn(args ...interface{}) {
-	logger.Warn(args...)
-}
-
-func Warning(args ...interface{}) {
-	logger.Warning(args...)
-}
-
-func Error(args ...interface{}) {
-	logger.Error(args...)
-}
-
-func Panic(args ...interface{}) {
-	logger.Panic(args...)
-}
-
-func Fatal(args ...interface{}) {
-	logger.Fatal(args...)
+	// 设置日志级别为debug以上
+	logger.SetLevel(logrus.DebugLevel)
 }

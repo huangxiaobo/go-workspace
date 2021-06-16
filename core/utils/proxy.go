@@ -9,20 +9,17 @@ import (
 	"net/url"
 )
 
-//
-const s = `
-{
-  "anonymous": "",
-  "check_count": 3,
-  "fail_count": 0,
-  "https": false,
-  "last_status": true,
-  "last_time": "2021-06-14 17:22:42",
-  "proxy": "106.52.10.171:9999",
-  "region": "",
-  "source": "freeProxy09"
-}
-`
+//{
+//  "anonymous": "",
+//  "check_count": 3,
+//  "fail_count": 0,
+//  "https": false,
+//  "last_status": true,
+//  "last_time": "2021-06-14 17:22:42",
+//  "proxy": "106.52.10.171:9999",
+//  "region": "",
+//  "source": "freeProxy09"
+//}
 
 type ProxyObj struct {
 	Proxy      string `json:"proxy"`
@@ -51,12 +48,12 @@ func (po *ProxyObj) GetTransport() *http.Transport {
 }
 
 func (po *ProxyObj) String() string {
-	return fmt.Sprintf("Proxy{https=%b, port=%s}", po.Https, po.Proxy)
+	return fmt.Sprintf("Proxy{https=%t, port=%s}", po.Https, po.Proxy)
 }
 
 func GetProxy() *ProxyObj {
-	url := "http://127.0.0.1:5010/get/"
-	resp, err := http.Get(url)
+	proxyUrl := "http://127.0.0.1:5010/get/"
+	resp, err := http.Get(proxyUrl)
 	if err != nil {
 		fmt.Printf("err : %s", err)
 	}

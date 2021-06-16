@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"money/core/task"
 	"money/core/utils"
 	"time"
@@ -26,7 +27,7 @@ func (sd *Scheduler) crawler(fetchTasks chan task.FetchTask) {
 				proxy := utils.GetProxy()
 
 				ok, html := fetch.Fetch(reqUrl, proxy)
-				log.Info("download ", reqUrl, " status: ", ok)
+				log.Info(fmt.Sprintf("download %s, status: %t ", reqUrl, ok))
 				if ok != true {
 					// retry
 					fetchTasks <- fetchTask
@@ -36,7 +37,7 @@ func (sd *Scheduler) crawler(fetchTasks chan task.FetchTask) {
 
 				parser := parser.Factory(fetchTask.Parser)
 
-				log.Info("crawler %s finish, parser:%s", reqUrl, parser)
+				log.Info(fmt.Sprintf("crawler %s finish, parser:%s", reqUrl, parser))
 				time.Sleep(time.Second)
 			}
 
@@ -51,7 +52,9 @@ func (sd *Scheduler) start() {
 
 	go sd.crawler(fetchTasks)
 
-	fetchTasks <- task.FetchTask{Url: "https://rarbgmirror.org/torrent/q8c1nbv", Parser: "rarbg"}
+	fetchTasks <- task.FetchTask{Url: "https://www.zhihu.com/people/huang-liao-57", Parser: "zhihu"}
+	fetchTasks <- task.FetchTask{Url: "https://www.zhihu.com/people/gong-qing-tuan-zhong-yang-67", Parser: "zhihu"}
+	fetchTasks <- task.FetchTask{Url: "https://www.zhihu.com/people/cloudycity", Parser: "zhihu"}
 }
 
 func main() {

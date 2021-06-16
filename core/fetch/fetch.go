@@ -33,7 +33,7 @@ func getAgent() string {
 }
 
 func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
-	fmt.Printf("download >>> url: %s, proxy: %v\n", urlString, *proxy)
+	log.Info(fmt.Sprintf("download >>> url: %s, proxy: %+v", urlString, proxy))
 
 	transport := proxy.GetTransport()
 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
@@ -51,11 +51,11 @@ func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
 	resp, err := client.Do(req)
 
 	if err != nil || resp == nil {
-		log.Info("do request fail>>>: %v", err)
+		log.InfoWithFields("do request fail>>>: ", log.Fields{"err": err})
 		return false, ""
 	}
 
-	fmt.Println(resp.StatusCode)
+	log.InfoWithFields("", log.Fields{"url": urlString, "status_code": resp.StatusCode})
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -64,7 +64,7 @@ func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("read body failed:" + err.Error())
+		log.Fatal("read body failed:", err.Error())
 	}
 
 	return true, string(body)
