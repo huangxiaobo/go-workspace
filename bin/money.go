@@ -58,7 +58,7 @@ func (sd *Scheduler) start() {
 }
 
 func main() {
-	log.InitLog("./output/money.log", "money", "utf-8")
+	log.InitLog("./output/", "money", "utf-8")
 	log.Info("proxy pool")
 
 	sd := Scheduler{}
@@ -67,4 +67,5 @@ func main() {
 	for {
 		time.Sleep(time.Microsecond)
 	}
+
 }
