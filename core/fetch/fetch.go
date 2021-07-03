@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"money/core/db"
 	"money/core/log"
 	"money/core/utils"
 )
@@ -46,7 +49,7 @@ func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3")
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("User-Agent", getAgent())
-	//req.Header.Set("Connection", "keep-alive")
+	// req.Header.Set("Connection", "keep-alive")
 
 	resp, err := client.Do(req)
 
@@ -68,4 +71,39 @@ func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
 	}
 
 	return true, string(body)
+}
+
+type Fetcher struct {
+}
+
+func (f *Fetcher) Start() {
+	for true {
+		task := &db.FetchTask{}
+		if err := db.GetFetchTask(task); err != nil {
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		reqUrl := task.Url
+		log.Info("crawler proxy: ", reqUrl)
+
+		proxy := utils.GetProxy()
+
+		ok, html := Fetch(reqUrl, proxy)
+		log.Info(fmt.Sprintf("download %s, status: %t ", reqUrl, ok))
+		if ok != true {
+			// retry
+			continue
+		}
+		log.Info("html: ", html)
+
+		task.Page = html
+
+		if err := db.UpdateFetchTask(task); err != nil {
+			logrus.Error(err)
+		}
+
+		time.Sleep(time.Second)
+	}
+
 }

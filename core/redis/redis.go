@@ -2,6 +2,7 @@ package redis
 
 import (
 	"fmt"
+
 	"gopkg.in/redis.v4"
 
 	"money/core/log"

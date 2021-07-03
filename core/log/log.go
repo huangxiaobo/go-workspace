@@ -151,7 +151,7 @@ func InitLog(logPath string, appName string, encoding string) {
 	writers := []io.Writer{
 		file,
 		os.Stdout}
-	//同时写文件和屏幕
+	// 同时写文件和屏幕
 	fileAndStdoutWriter := io.MultiWriter(writers...)
 
 	// 设置将日志输出到标准输出（默认的输出为stderr，标准错误）

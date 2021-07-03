@@ -1,4 +1,14 @@
-package model
+package zhihu
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/PuerkitoBio/goquery"
+
+	"money/core/log"
+)
 
 type People struct {
 	AccountStatus     []interface{} `json:"accountStatus"`
@@ -87,4 +97,53 @@ type People struct {
 	VoteToCount   int `json:"voteToCount"`
 	VoteupCount   int `json:"voteupCount"`
 	ZvideoCount   int `json:"zvideoCount"`
+}
+
+type ParserZhihuPeople struct {
+}
+
+func (p *ParserZhihuPeople) Parse(html string) error {
+
+	// Load the HTML document
+	dom, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	content := dom.Find("#js-initialData").First().Text()
+
+	data := map[string]interface{}{}
+	err = json.Unmarshal([]byte(content), &data)
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	for userId, userData := range getUserData(data, "initialState/entities/users") {
+		log.InfoWithFields(nil, log.Fields{"UserId": userId})
+
+		userDataStr, err := json.MarshalIndent(userData, "", "    ")
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+
+		pp := People{}
+		json.Unmarshal(userDataStr, &pp)
+
+		log.Info(fmt.Sprintf("%+v", pp))
+	}
+
+	return nil
+}
+
+func getUserData(data map[string]interface{}, path string) map[string]interface{} {
+	items := strings.Split(path, "/")
+	m := data
+	for _, item := range items {
+		m = m[item].(map[string]interface{})
+
+	}
+	return m
 }

@@ -1,5 +1,7 @@
 package parser
 
+import "money/core/parser/zhihu"
+
 type Parser interface {
 	Parse(content string) error
 }
@@ -10,7 +12,7 @@ func Factory(name string) Parser {
 
 	switch name {
 	case ParserZhihu:
-		return &ZhihuPeople{}
+		return &zhihu.ParserZhihuPeople{}
 	}
 
 	return nil

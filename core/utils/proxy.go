@@ -9,7 +9,7 @@ import (
 	"net/url"
 )
 
-//{
+// {
 //  "anonymous": "",
 //  "check_count": 3,
 //  "fail_count": 0,
@@ -19,7 +19,7 @@ import (
 //  "proxy": "106.52.10.171:9999",
 //  "region": "",
 //  "source": "freeProxy09"
-//}
+// }
 
 type ProxyObj struct {
 	Proxy      string `json:"proxy"`
