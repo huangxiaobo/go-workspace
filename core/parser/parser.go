@@ -16,5 +16,4 @@ func Factory(name string) Parser {
 	}
 
 	return nil
-
 }

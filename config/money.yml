@@ -22,3 +22,6 @@ database:
   user: money
   password: 123456
   dbname: money
+
+proxy:
+  url: http://127.0.0.1:5010/get/
