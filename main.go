@@ -1,16 +1,23 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
+	"strings"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 
 	"money/core/config"
 	"money/core/db"
 	"money/core/fetch"
 	"money/core/log"
+	"money/core/task"
 )
 
 type Scheduler struct {
+	tasks []*task.FetchTask
 }
 
 func (sd *Scheduler) crawler() {
@@ -23,18 +30,12 @@ func (sd *Scheduler) crawler() {
 }
 
 func (sd *Scheduler) start() {
-
 	go sd.crawler()
 
-	for _, item := range config.Conf.Crawler.Tasks {
-		fetchTask := &db.FetchTask{
-			Project: item.Project,
-			Url:     item.Url,
-			Parser:  item.Parser,
-		}
-		db.AddFetchTask(fetchTask)
+}
 
-	}
+func (sd *Scheduler) AddFetchTask(t *task.FetchTask) {
+	sd.tasks = append(sd.tasks, t)
 }
 
 var ConfFilePath = flag.String("conf", "./config/money.yml", "config file path")
@@ -55,6 +56,45 @@ func main() {
 	log.Info("Crawler")
 
 	sd := Scheduler{}
+
+	for _, item := range config.Conf.Crawler.Tasks {
+		fetchTask := &task.FetchTask{
+			Url: item.Url,
+		}
+		fetchTask.OnSuccess("#js-initialData", func(selection *goquery.Selection) {
+			content := selection.Text()
+			data := map[string]interface{}{}
+			if err := json.Unmarshal([]byte(content), &data); err != nil {
+				log.Error(err)
+				return
+			}
+
+			items := strings.Split("initialState/entities/users", "/")
+			m := data
+			for _, item := range items {
+				m = m[item].(map[string]interface{})
+
+			}
+
+			for userId, userData := range m {
+				log.InfoWithFields(nil, log.Fields{"UserId": userId})
+
+				userDataStr, err := json.MarshalIndent(userData, "", "    ")
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+
+				pp := map[string]interface{}{}
+				json.Unmarshal(userDataStr, &pp)
+
+				log.Info(fmt.Sprintf("%+v", pp))
+			}
+		})
+		sd.AddFetchTask(fetchTask)
+
+	}
+
 	sd.start()
 
 	for {

@@ -28,7 +28,7 @@ type Config struct {
 		Port     int    `yaml:"port"`
 		DbName   string `yaml:"dbname"`
 	} `yaml:"database"`
-	Proxy struct{
+	Proxy struct {
 		Url string `yaml:"url"`
 	} `yaml:"proxy"`
 }
