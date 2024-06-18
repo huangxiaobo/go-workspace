@@ -10,27 +10,10 @@ import (
 
 type Config struct {
 	App struct {
-		Host string `yaml:"host"`
-		Port int    `yaml:"port"`
+		Host string `yaml:"Host"`
+		Port int    `yaml:"Port"`
 	} `yaml:"app"`
 
-	Crawler struct {
-		Tasks []struct {
-			Project string `yaml:"project"`
-			Url     string `yaml:"url"`
-			Parser  string `yaml:"parser"`
-		} `yaml:"tasks"`
-	} `yaml:"crawler"`
-	Database struct {
-		User     string `yaml:"user"`
-		Password string `yaml:"password"`
-		Host     string `yaml:"host"`
-		Port     int    `yaml:"port"`
-		DbName   string `yaml:"dbname"`
-	} `yaml:"database"`
-	Proxy struct {
-		Url string `yaml:"url"`
-	} `yaml:"proxy"`
 }
 
 var Conf Config
@@ -49,4 +32,7 @@ func LoadConfig(file string) {
 
 	s, err := json.MarshalIndent(Conf, "", "    ")
 	fmt.Println(string(s))
+	if err != nil {
+		panic("parse config file error")
+	}
 }

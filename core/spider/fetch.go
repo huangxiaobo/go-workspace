@@ -1,4 +1,4 @@
-package fetch
+package spider
 
 import (
 	"fmt"
@@ -7,11 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
-	"money/core/db"
-	"money/core/log"
-	"money/core/utils"
+	"github.com/huangxiaobo/gospider/core/log"
 )
 
 var agents = []string{
@@ -35,11 +31,13 @@ func getAgent() string {
 	return agents[r.Intn(size)]
 }
 
-func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
-	log.Info(fmt.Sprintf("download >>> url: %s, proxy: %+v", urlString, proxy))
+func Fetch(urlString string) (bool, string) {
+	log.Info(fmt.Sprintf("download >>> url: %s", urlString))
 
-	transport := proxy.GetTransport()
-	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
+	client := &http.Client{
+		// Transport: transport,
+		Timeout: 30 * time.Second,
+	}
 	req, err := http.NewRequest("GET", urlString, nil)
 	if err != nil {
 		log.Fatal("new request failed,", err.Error())
@@ -76,33 +74,20 @@ func Fetch(urlString string, proxy *utils.ProxyObj) (bool, string) {
 type Fetcher struct {
 }
 
-func (f *Fetcher) Start() {
-	for true {
-		task := &db.FetchTask{}
-		if err := db.GetFetchTask(task); err != nil {
-			time.Sleep(10 * time.Second)
-			continue
+func (f *Fetcher) Start(tasks <-chan *FetchTask) {
+	for {
+		select {
+		case t := <-tasks:
+			reqUrl := t.Url
+			log.Info("crawler url: ", reqUrl)
+
+			ok, html := Fetch(t.Url)
+			log.Info(fmt.Sprintf("download %s, status: %t ", reqUrl, ok))
+			log.Info("html: ", html)
+
+			t.OnSuccess(html)
+
 		}
-
-		reqUrl := task.Url
-		log.Info("crawler proxy: ", reqUrl)
-
-		proxy := utils.GetProxy()
-
-		ok, html := Fetch(reqUrl, proxy)
-		log.Info(fmt.Sprintf("download %s, status: %t ", reqUrl, ok))
-		if ok != true {
-			// retry
-			continue
-		}
-		log.Info("html: ", html)
-
-		task.Page = html
-
-		if err := db.UpdateFetchTask(task); err != nil {
-			logrus.Error(err)
-		}
-
-		time.Sleep(time.Second)
 	}
+
 }

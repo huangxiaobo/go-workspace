@@ -1,14 +1,10 @@
-module money
+module github.com/huangxiaobo/gospider
 
-go 1.12
+go 1.22
 
 require (
-	github.com/PuerkitoBio/goquery v1.6.1
-	github.com/garyburd/redigo v1.6.2 // indirect
-	github.com/jinzhu/gorm v1.9.16
-	github.com/onsi/gomega v1.13.0 // indirect
-	github.com/sirupsen/logrus v1.8.1
-	gopkg.in/bsm/ratelimit.v1 v1.0.0-20160220154919-db14e161995a // indirect
-	gopkg.in/redis.v4 v4.2.4
+	github.com/sirupsen/logrus v1.9.3
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+require golang.org/x/sys v0.21.0 // indirect

@@ -1,7 +1,3 @@
-# go-workspace
+# 说明
 
-go study
-
-## ip
-
-> https://github.com/jhao104/proxy_pool
+一个go实现的爬虫
