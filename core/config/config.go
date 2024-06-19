@@ -9,11 +9,10 @@ import (
 )
 
 type Config struct {
-	App struct {
+	Server struct {
 		Host string `yaml:"Host"`
 		Port int    `yaml:"Port"`
-	} `yaml:"app"`
-
+	} `yaml:"Server"`
 }
 
 var Conf Config

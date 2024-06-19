@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/huangxiaobo/gospider/core/config"
 	"github.com/huangxiaobo/gospider/core/log"
@@ -26,21 +31,34 @@ func (p *DefaultParser) Name() string {
 }
 
 func (p *DefaultParser) Parse(content string) error {
-	log.Info("parser content:", content)
+	log.Info("parser content:", len(content))
 	return nil
 }
 
 func main() {
 
-	log.Info("Crawler")
+	log.Info("GoSpider")
 
-	sd := spider.NewSpider()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// 恢复默认的中断信号行为, 然后通知spider退出
+	defer stop()
 
-	sd.AddFetchTask(&spider.FetchTask{
-		Url:    "https://www.baidu.com/",
-		Parser: &DefaultParser{},
-	})
+	s := spider.NewSpider(ctx)
 
-	sd.Start()
+	s.AddUrl(
+		"https://www.baidu.com/",
+		&DefaultParser{},
+	)
+
+	// 启动spider
+	go s.Run()
+
+	// 监听中断退出信号.
+	<-ctx.Done()
+
+	if err := s.GracefullyShutdown(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
+	}
 
 }

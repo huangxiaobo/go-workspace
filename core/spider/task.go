@@ -1,12 +1,15 @@
 package spider
 
-import 	"github.com/huangxiaobo/gospider/core/log"
+import (
+	"io"
+
+	"github.com/huangxiaobo/gospider/core/log"
+)
 
 type FetchTask struct {
 	Url    string
 	Parser Parser
 }
-
 
 func (t *FetchTask) OnSuccess(selector string) {
 	if t.Parser == nil {
@@ -14,4 +17,12 @@ func (t *FetchTask) OnSuccess(selector string) {
 		return
 	}
 	go t.Parser.Parse(selector)
+}
+
+// Task Response
+
+type TaskResponse struct {
+	Body io.ReadCloser
+
+	CSS (string)
 }

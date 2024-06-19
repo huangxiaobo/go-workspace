@@ -3,47 +3,92 @@ package spider
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
+	"time"
+
+	"github.com/huangxiaobo/gospider/core/log"
 )
 
 type Spider struct {
-	tasksCh chan *FetchTask
-	doneCh  chan struct{}
+	tasksCh       chan *FetchTask
+	taskReponseCh chan *TaskResponse
 
+	fetchManger *FetcherManager
+
+	// ctx, 传递结束信号
 	ctx context.Context
 }
 
-func NewSpider() *Spider {
+func NewSpider(ctx context.Context) *Spider {
+
 	s := &Spider{
-		tasksCh: make(chan *FetchTask, 100),
-		doneCh:  make(chan struct{}),
-		ctx:     context.Background(),
+		tasksCh:       make(chan *FetchTask, 100),
+		taskReponseCh: make(chan *TaskResponse, 100),
+		ctx:           ctx,
 	}
+
+	s.fetchManger = NewFetchManager(ctx)
+	s.fetchManger.Start()
+
 	return s
 }
 
-func (sd *Spider) Start() {
-	go func() {
-		fetcher := &Fetcher{}
-		fetcher.Start(sd.tasksCh)
-	}()
+func (s *Spider) Run() {
 
-	// 监听退出信号
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func(doneCh chan struct{}) {
-		sig := <-sigs
-		fmt.Println(sig)
-		doneCh <- struct{}{}
-	}(sd.doneCh)
-
-	// 阻塞，直到进程结束
-	<-sd.doneCh
+	for {
+		select {
+		case t, ok := <-s.tasksCh:
+			if !ok {
+				log.Info("spider task channel is closed")
+			}
+			s.fetchManger.AddTask(t)
+		case <-s.ctx.Done():
+			return
+		}
+	}
 }
 
-func (sd *Spider) AddFetchTask(t *FetchTask) {
-	sd.tasksCh <- t
+func (s *Spider) AddUrl(url string, parser Parser) {
+	s.tasksCh <- &FetchTask{Url: url, Parser: parser}
+}
+
+func (s *Spider) Shutdown(ctx context.Context) error {
+	log.Info("spider shutdown start")
+	close(s.tasksCh)
+	close(s.taskReponseCh)
+	s.fetchManger.Stop(ctx)
+
+	log.Info("spider shutdown success")
+
+	return nil
+}
+
+func (s *Spider) GracefullyShutdown() error {
+	log.Info("gracefully shutdown")
+
+	errCh := make(chan error, 1)
+	defer close(errCh)
+
+	// 执行spider退出，设置超时时间5s
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		if err := s.Shutdown(timeoutCtx); err != nil {
+			log.Fatal("shutdown failed: ", err)
+			errCh <- err
+		} else {
+			errCh <- nil
+		}
+	}()
+
+	select {
+	case <-timeoutCtx.Done():
+		if timeoutCtx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("shutdown timeout")
+		}
+	case err := <-errCh:
+		return err
+	}
+
+	return nil
 }

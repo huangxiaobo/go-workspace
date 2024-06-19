@@ -1,10 +1,12 @@
 package spider
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/huangxiaobo/gospider/core/log"
@@ -63,7 +65,7 @@ func Fetch(urlString string) (bool, string) {
 		return false, ""
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal("read body failed:", err.Error())
 	}
@@ -71,23 +73,107 @@ func Fetch(urlString string) (bool, string) {
 	return true, string(body)
 }
 
-type Fetcher struct {
+// FetcherManager 管理多个fetcher
+type FetcherManager struct {
+	// 待执行的fetch task管道
+	fetchTasksCh chan *FetchTask
+
+	// fetch worker 的数量
+	fetchWorkerNum    int
+	fetchWorkerWg     *sync.WaitGroup
+	fetchWorkerCancel context.CancelFunc
+
+	ctx context.Context
 }
 
-func (f *Fetcher) Start(tasks <-chan *FetchTask) {
+func NewFetchManager(ctx context.Context) *FetcherManager {
+	f := &FetcherManager{
+		fetchTasksCh:   make(chan *FetchTask, 100),
+		fetchWorkerNum: 10,
+		fetchWorkerWg:  nil,
+		ctx:            ctx,
+	}
+
+	return f
+}
+
+func (m *FetcherManager) AddTask(task *FetchTask) error {
+	m.fetchTasksCh <- task
+	return nil
+}
+
+func (m *FetcherManager) Start() {
+	m.fetchWorkerWg = &sync.WaitGroup{}
+
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+
+	m.fetchWorkerCancel = workerCancel
+
+	for i := 0; i < m.fetchWorkerNum; i++ {
+		m.fetchWorkerWg.Add(1)
+		fw := &FetchWorker{
+			Id: fmt.Sprintf("fetch-worker-%d", i+1),
+		}
+		go func() {
+			defer m.fetchWorkerWg.Done()
+			fw.Run(workerCtx, m.fetchTasksCh)
+		}()
+	}
+
+}
+
+func (m *FetcherManager) Stop(ctx context.Context) {
+	log.Info("fetch manager stop begin")
+	doneCh := make(chan struct{})
+	go func() {
+		// 关闭任务管道
+		close(m.fetchTasksCh)
+		// 取消context
+		m.fetchWorkerCancel()
+		// 等待所有worker协程结束
+		m.fetchWorkerWg.Wait()
+		// 关闭完成管道
+		close(doneCh)
+	}()
+
+	select {
+	case <-doneCh:
+		log.Info("fetch manager stop success")
+	case <-ctx.Done():
+		log.Info("fetch manager stop timeout")
+	}
+
+}
+
+// Fetcher worker
+
+type FetchWorker struct {
+	Id string
+}
+
+// 通过关闭taskCh来结束worker
+func (fw *FetchWorker) Run(ctx context.Context, taskCh <-chan *FetchTask) {
 	for {
 		select {
-		case t := <-tasks:
+		case t, ok := <-taskCh:
+			if !ok {
+				log.Info("fetch task channel is closed: ", fw)
+				return
+			}
 			reqUrl := t.Url
-			log.Info("crawler url: ", reqUrl)
+			log.Info("download url: ", reqUrl)
 
 			ok, html := Fetch(t.Url)
 			log.Info(fmt.Sprintf("download %s, status: %t ", reqUrl, ok))
-			log.Info("html: ", html)
 
 			t.OnSuccess(html)
-
+		case <-ctx.Done():
+			log.Info("fetch task is closed: ", fw)
+			return
 		}
 	}
+}
 
+func (fw FetchWorker) String() string {
+	return fmt.Sprintf("FetchWorker{Id=%s}", fw.Id)
 }
